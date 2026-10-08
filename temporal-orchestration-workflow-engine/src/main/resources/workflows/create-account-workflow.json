@@ -1,0 +1,196 @@
+{
+  "name": "Customer Account creation",
+  "layoutDirection": "RIGHT",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "node",
+      "position": { "x": -72, "y": 234 },
+      "data": {
+        "type": "trigger",
+        "icon": "Lightning",
+        "properties": {
+          "label": "Account Signup Submitted",
+          "description": "Fires when a new user submits the signup form",
+          "type": "eventBasedTrigger",
+          "status": "active",
+          "eventType": "formSubmission",
+          "condition": { "rule": "", "value": "" },
+          "systemValue": ""
+        }
+      }
+    },
+    {
+      "id": "action-check-duplicate",
+      "type": "node",
+      "position": { "x": 288, "y": 234 },
+      "data": {
+        "type": "action",
+        "icon": "PlayCircle",
+        "properties": {
+          "label": "Verify Account Submission",
+          "description": "Logged for audit only - does not branch the workflow (see README 'Diagram to code')",
+          "status": "active",
+          "type": "makeApiCall",
+          "makeAPICall": {
+            "apiUrl": "http://create-account:8083/api/accounts/exists?email={{email}}",
+            "httpMethod": "get",
+            "headers": "",
+            "body": "",
+            "responseFormat": "json",
+            "storeResponse": "submissionCheckResult",
+            "retryOnFailure": true
+          }
+        }
+      }
+    },
+    {
+      "id": "9dd29ab8-7a02-4fed-b639-ff4255f5dead",
+      "type": "node",
+      "position": { "x": 648, "y": 234 },
+      "data": {
+        "type": "action",
+        "icon": "PlayCircle",
+        "properties": {
+          "label": "Calculate Risk Score",
+          "description": "Verify Risk Score",
+          "status": "active",
+          "type": "makeApiCall",
+          "makeAPICall": {
+            "apiUrl": "http://risk-score:8084/api/risk-score/evaluate",
+            "httpMethod": "post",
+            "headers": "Content-Type: application/json",
+            "body": "{{kycPayload}}",
+            "responseFormat": "json",
+            "storeResponse": "riskAssessment",
+            "retryOnFailure": true
+          }
+        }
+      }
+    },
+    {
+      "id": "b0963d42-f14f-40a0-b8f8-05c1999d171a",
+      "type": "decision-node",
+      "position": { "x": 972, "y": 234 },
+      "data": {
+        "type": "decision",
+        "icon": "ArrowsSplit",
+        "properties": {
+          "label": "Validate Risk Score",
+          "description": "Verify Risk Score",
+          "status": "active",
+          "decisionBranches": [
+            {
+              "id": "599f888e-ac94-4002-b547-8ab6d0f2f779",
+              "sourceHandle": "source:inner:599f888e-ac94-4002-b547-8ab6d0f2f779",
+              "label": "Notify Account creation Rejection",
+              "conditions": [
+                { "x": "riskAssessment.riskLevel", "comparisonOperator": "isEqual", "y": "HIGH", "logicalOperator": "" }
+              ]
+            },
+            {
+              "id": "89ebf861-3604-4a87-83f8-21735073bb48",
+              "sourceHandle": "source:inner:89ebf861-3604-4a87-83f8-21735073bb48",
+              "label": "Notify Account creation",
+              "conditions": [
+                { "x": "riskAssessment.riskLevel", "comparisonOperator": "isEqual", "y": "LOW", "logicalOperator": "" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d82afc2e-7449-4047-bfc2-e17f5153e280",
+      "type": "node",
+      "position": { "x": 1278, "y": 126 },
+      "data": {
+        "type": "action",
+        "icon": "PlayCircle",
+        "properties": {
+          "label": "Notify Account Creation Rejection",
+          "description": "send reject email",
+          "status": "active",
+          "type": "sendEmail",
+          "sendEmail": {
+            "address": "{{email}}",
+            "body": "Hi {{fullName}}, your application did not clear our automated risk assessment.",
+            "copy": "",
+            "subject": "Your KYC application requires further review",
+            "priority": "normal",
+            "retryOnFailure": true,
+            "retries": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "b2188b30-8540-4571-b335-06b00e35dae5",
+      "type": "node",
+      "position": { "x": 1296, "y": 378 },
+      "data": {
+        "type": "action",
+        "icon": "PlayCircle",
+        "properties": {
+          "label": "Notify Account Creation",
+          "description": "send acceptance email",
+          "status": "active",
+          "type": "sendEmail",
+          "sendEmail": {
+            "address": "{{email}}",
+            "body": "Hi {{fullName}}, your application has passed our risk assessment.",
+            "copy": "",
+            "subject": "Your KYC application has been approved",
+            "priority": "normal",
+            "retryOnFailure": true,
+            "retries": 3
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-trigger-checkduplicate",
+      "source": "trigger-1",
+      "sourceHandle": "source",
+      "target": "action-check-duplicate",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-checkduplicate-riskscore",
+      "source": "action-check-duplicate",
+      "sourceHandle": "source",
+      "target": "9dd29ab8-7a02-4fed-b639-ff4255f5dead",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-riskscore-decision",
+      "source": "9dd29ab8-7a02-4fed-b639-ff4255f5dead",
+      "sourceHandle": "source",
+      "target": "b0963d42-f14f-40a0-b8f8-05c1999d171a",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-decision-high-rejected",
+      "source": "b0963d42-f14f-40a0-b8f8-05c1999d171a",
+      "sourceHandle": "source:inner:599f888e-ac94-4002-b547-8ab6d0f2f779",
+      "target": "d82afc2e-7449-4047-bfc2-e17f5153e280",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Notify Account creation Rejection"
+    },
+    {
+      "id": "edge-decision-low-approved",
+      "source": "b0963d42-f14f-40a0-b8f8-05c1999d171a",
+      "sourceHandle": "source:inner:89ebf861-3604-4a87-83f8-21735073bb48",
+      "target": "b2188b30-8540-4571-b335-06b00e35dae5",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Notify Account creation"
+    }
+  ]
+}

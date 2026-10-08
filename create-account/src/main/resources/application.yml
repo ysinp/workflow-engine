@@ -1,0 +1,58 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: create-account
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/accounts}
+    username: ${SPRING_DATASOURCE_USERNAME:accounts_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:accounts_pass}
+  jpa:
+    # ddl-auto: update is acceptable for this POC only; a real deployment would
+    # replace this with versioned migrations (Flyway/Liquibase) instead of
+    # letting Hibernate infer schema changes at boot time.
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  autoconfigure:
+    # Authentication is JWT-only (see config.SecurityConfig); suppress Spring Boot's default
+    # in-memory "user" account and its "Using generated security password" startup log line.
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
+# HMAC signing key for issued JWTs. The default is for local dev ONLY - always set JWT_SECRET
+# (>= 32 bytes; Keys.hmacShaKeyFor rejects anything shorter) in any shared environment.
+jwt:
+  secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-please-this-needs-to-be-at-least-32-bytes-long}
+  expiration-hours: ${JWT_EXPIRATION_HOURS:4}
+
+# The single demo compliance-reviewer login this POC uses (see config.ReviewerAccountSeeder).
+# Sign in with these on the frontend's Sign In page to reach the Dashboard and Review Console.
+reviewer:
+  seed:
+    email: ${REVIEWER_EMAIL:reviewer@demo.local}
+    password: ${REVIEWER_PASSWORD:ReviewDemo123!}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+      percentiles:
+        http:
+          server:
+            requests: 0.5,0.95,0.99

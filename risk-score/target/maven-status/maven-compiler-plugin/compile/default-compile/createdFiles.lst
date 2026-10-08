@@ -1,0 +1,12 @@
+com\example\riskscore\service\RiskScoringService.class
+com\example\riskscore\exception\ErrorResponse.class
+com\example\riskscore\service\rule\RiskFact.class
+com\example\riskscore\service\RiskScoringServiceImpl.class
+com\example\riskscore\config\DroolsConfig.class
+com\example\riskscore\service\rule\RuleOutcome.class
+com\example\riskscore\dto\RiskEvaluationRequest$Address.class
+com\example\riskscore\dto\RiskEvaluationResponse.class
+com\example\riskscore\RiskScoreApplication.class
+com\example\riskscore\dto\RiskEvaluationRequest.class
+com\example\riskscore\exception\GlobalExceptionHandler.class
+com\example\riskscore\controller\RiskScoreController.class

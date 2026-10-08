@@ -1,0 +1,246 @@
+<title>KYC onboarding sequence</title>
+<style>
+  :root {
+    /* layout: header, intro, then two stacked sequence-diagram sections, each in its own scroll frame */
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --fg: #282728;
+    --muted: #5A5A58;
+    --border: #E4E2DA;
+    --accent: #5E8A17;
+    --accent-2: #0C7AA8;
+    --font-display: 'Open Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1B1B1A;
+      --surface: #242423;
+      --fg: #ECEAE4;
+      --muted: #A7A49C;
+      --border: #3A3937;
+      --accent: #8FC93A;
+      --accent-2: #4FC3EC;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1B1B1A;
+    --surface: #242423;
+    --fg: #ECEAE4;
+    --muted: #A7A49C;
+    --border: #3A3937;
+    --accent: #8FC93A;
+    --accent-2: #4FC3EC;
+    color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--fg); margin: 0; padding: 0 16px; }
+  * { box-sizing: border-box; }
+  .wrap { max-width: 880px; margin: 0 auto; padding-block: 32px 48px; font-family: var(--font-display); }
+
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 6px; }
+  .subtitle { font-size: 14px; color: var(--muted); margin: 0 0 28px; max-width: 65ch; line-height: 1.6; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 28px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot.accent { background: var(--accent); }
+  .dot.accent-2 { background: var(--accent-2); }
+
+  section { margin-bottom: 36px; }
+  h2 { font-size: 16px; font-weight: 500; margin: 0 0 4px; }
+  .section-note { font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.6; }
+
+  .diagram-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+  .diagram-card pre.mermaid { margin: 0; min-width: 640px; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--border);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 16px; margin-top: 8px; }
+</style>
+
+<div class="wrap">
+  <h1>KYC onboarding sequence</h1>
+  <p class="subtitle">
+    How the customer and compliance reviewer journeys map onto actual UI screens and service calls,
+    for the Secure Onboarding KYC proof of concept. Each <code>Note</code> marks which screen the
+    user is looking at when that step happens.
+  </p>
+
+  <div class="legend">
+    <span><span class="dot accent"></span>Customer-facing path</span>
+    <span><span class="dot accent-2"></span>Reviewer-facing path</span>
+  </div>
+
+  <section>
+    <h2>1. Sign-up through risk decision</h2>
+    <p class="section-note">
+      One submission, one of two outcomes. A <code>LOW</code> risk score resolves in seconds with no
+      human involved; a <code>HIGH</code> score hands the case to a reviewer, and the customer's own
+      screen updates live the moment a decision is made &mdash; no refresh, no second visit.
+    </p>
+    <div class="diagram-card">
+<pre class="mermaid">
+sequenceDiagram
+    actor Customer
+    actor Reviewer
+    participant UI as React Frontend
+    participant Submission as account-creation-submission
+    participant Accounts as create-account
+    participant Orchestration as orchestration engine
+    participant Temporal as Temporal Server
+    participant Risk as risk-score
+
+    Note over Customer,UI: Sign Up page
+    Customer->>UI: Complete KYC wizard, submit
+    UI->>Submission: POST /api/account-submissions
+    activate Submission
+    Submission->>Accounts: stage application, hash password
+    Accounts-->>Submission: applicationId
+    Submission->>Orchestration: POST /workflows/account-creation/executions
+    Orchestration->>Temporal: WorkflowClient.start(...)
+    Temporal-->>Orchestration: execution started
+    Orchestration-->>Submission: 202 Accepted
+    Submission-->>UI: submissionId, status RUNNING
+    deactivate Submission
+    Note over UI: inline status panel, polling every second
+
+    Temporal->>Orchestration: dispatch workflow task
+    Orchestration->>Risk: evaluateRisk(KYC data)
+    Risk-->>Orchestration: riskLevel
+
+    alt LOW risk
+        Orchestration->>Accounts: activateAccount
+        Accounts-->>Orchestration: account created
+        Orchestration->>Temporal: complete execution - APPROVED
+        UI->>Submission: GET status (poll)
+        Submission-->>UI: COMPLETED, APPROVED
+        Note over UI: result screen - account approved
+        Customer->>UI: Sign In
+        UI->>Accounts: POST /api/accounts/signin
+        Accounts-->>UI: JWT + account, balance
+        Note over UI: My Account page - shows balance
+    else HIGH risk
+        Orchestration->>Temporal: Workflow.await(review decision)
+        Note over Temporal: suspended - zero cost while waiting
+        UI->>Submission: GET status (poll)
+        Submission-->>UI: AWAITING_REVIEW
+        Note over UI: result screen - under review
+
+        Reviewer->>UI: Sign In
+        UI->>Accounts: POST /api/accounts/signin
+        Accounts-->>UI: JWT, role REVIEWER
+        Note over UI: Dashboard / Review Console
+        UI->>Orchestration: GET /executions/awaiting-review
+        Orchestration-->>UI: pending cases
+        Reviewer->>UI: Open case, approve or reject
+        UI->>Submission: POST .../decision
+        Submission->>Orchestration: forward decision
+        Orchestration->>Temporal: signal submitReviewDecision
+        Temporal->>Orchestration: resume workflow
+        Orchestration->>Accounts: activateAccount or rejectApplication
+        Accounts-->>Orchestration: done
+        Orchestration->>Temporal: complete execution - APPROVED or REJECTED
+        UI->>Submission: GET status (poll, customer's own tab)
+        Submission-->>UI: COMPLETED
+        Note over UI: customer's screen updates live, no refresh
+    end
+</pre>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. How one status poll resolves</h2>
+    <p class="section-note">
+      There is no push channel anywhere in this system &mdash; <code>submissionId</code> is literally
+      the Temporal workflow ID, renamed at the API boundary, and every "live" update is a poll that
+      asks the Server what is true right now. <code>describe()</code> and <code>query()</code> are
+      reads: no Activity runs and no Event is appended to the workflow's history.
+    </p>
+    <div class="diagram-card">
+<pre class="mermaid">
+sequenceDiagram
+    participant UI as React Frontend
+    participant Submission as account-creation-submission
+    participant Orchestration as orchestration engine
+    participant Temporal as Temporal Server
+
+    Note over UI: SignUp.tsx - setInterval(poll, 1000ms)
+    UI->>Submission: GET /api/account-submissions/{submissionId}
+    Submission->>Orchestration: Feign GET /executions/{workflowId}
+    Note over Submission,Orchestration: submissionId and workflowId are the same string
+    Orchestration->>Temporal: stub.describe()
+    Temporal-->>Orchestration: RUNNING, COMPLETED, or FAILED
+
+    opt status is RUNNING
+        Orchestration->>Temporal: stub.query("isAwaitingReview")
+        Temporal-->>Orchestration: true or false
+        opt awaiting review
+            Orchestration->>Temporal: stub.query("getPendingRiskAssessment")
+            Temporal-->>Orchestration: risk level, score, reasons
+        end
+    end
+
+    Orchestration-->>Submission: status + result
+    Submission-->>UI: SubmissionStatusResponse
+    Note over UI: setPollStatus(...) / setRiskPhase(...) - screen re-renders
+</pre>
+    </div>
+    <p class="section-note" style="margin-top:14px; margin-bottom:0;">
+      Two independent loops read the same execution this way: the customer's tab every 1s, the
+      reviewer's queue every 8s. When a reviewer submits a decision, nothing is sent to the
+      customer's browser &mdash; their next poll simply lands after the Signal was processed and
+      <code>describe()</code> now returns <code>COMPLETED</code>. "Live" means "polled often enough
+      to feel live", not a websocket.
+    </p>
+  </section>
+
+  <section>
+    <h2>3. Reviewer: saving a diagram in the Workflow Editor</h2>
+    <p class="section-note">
+      A separate, design-time capability on the same UI: the reviewer's canvas round-trips through
+      Postgres instead of browser storage, so a diagram survives a reload or a different reviewer
+      opening the page.
+    </p>
+    <div class="diagram-card">
+<pre class="mermaid">
+sequenceDiagram
+    actor Reviewer
+    participant UI as Workflow Editor
+    participant Orchestration as orchestration engine
+    participant DB as PostgreSQL
+
+    Note over UI: Workflow Editor page loads
+    UI->>Orchestration: GET /api/workflow-definitions/{name}
+    Orchestration->>DB: select by name
+    DB-->>Orchestration: saved diagram, or none found
+    Orchestration-->>UI: diagram JSON, or 404
+    Note over UI: canvas renders initialNodes / initialEdges
+
+    Reviewer->>UI: Edit diagram, click Save
+    UI->>Orchestration: POST /api/workflow-definitions
+    Orchestration->>DB: upsert by name
+    DB-->>Orchestration: saved
+    Orchestration-->>UI: 200 OK
+    Note over UI: save confirmation shown on canvas
+</pre>
+    </div>
+  </section>
+
+  <footer>
+    Secure Onboarding KYC proof of concept &middot; sequence reflects the deployed Docker Compose stack
+  </footer>
+</div>

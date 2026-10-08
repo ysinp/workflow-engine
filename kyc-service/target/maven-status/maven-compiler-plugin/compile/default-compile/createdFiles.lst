@@ -1,0 +1,17 @@
+com\example\kyc\service\FeignIdentificationClient.class
+com\example\kyc\service\KycVerificationResult.class
+com\example\kyc\exception\IdentificationRecordNotFoundException.class
+com\example\kyc\dto\IdentificationView.class
+com\example\kyc\dto\FinancialVerificationRequest.class
+com\example\kyc\service\IdentificationClient.class
+com\example\kyc\exception\ErrorResponse.class
+com\example\kyc\exception\GlobalExceptionHandler.class
+com\example\kyc\service\FinancialVerificationServiceImpl.class
+com\example\kyc\exception\IdentificationServiceUnavailableException.class
+com\example\kyc\service\KycVerificationService.class
+com\example\kyc\service\FinancialVerificationService.class
+com\example\kyc\dto\FinancialVerificationResponse.class
+com\example\kyc\config\CorsConfig.class
+com\example\kyc\KycServiceApplication.class
+com\example\kyc\client\IdentificationServiceFeignClient.class
+com\example\kyc\controller\KycController.class

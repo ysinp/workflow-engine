@@ -1,0 +1,10 @@
+C:\workflow-engine\product-service\src\main\java\com\example\product\config\CorsConfig.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\config\ProductCatalogSeeder.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\controller\ProductController.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\dto\ProductResponse.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\entity\Product.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\entity\ProductCategory.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\ProductServiceApplication.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\repository\ProductRepository.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\service\ProductService.java
+C:\workflow-engine\product-service\src\main\java\com\example\product\service\ProductServiceImpl.java

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kmodule xmlns="http://www.drools.org/xsd/kmodule">
+    <kbase name="risk-rules-kbase" packages="com.example.riskscore.rules">
+        <ksession name="risk-rules-ksession" type="stateful"/>
+    </kbase>
+</kmodule>

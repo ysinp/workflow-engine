@@ -1,0 +1,11 @@
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\config\DroolsConfig.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\controller\RiskScoreController.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\dto\RiskEvaluationRequest.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\dto\RiskEvaluationResponse.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\exception\ErrorResponse.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\exception\GlobalExceptionHandler.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\RiskScoreApplication.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\service\RiskScoringService.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\service\RiskScoringServiceImpl.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\service\rule\RiskFact.java
+C:\workflow-engine\risk-score\src\main\java\com\example\riskscore\service\rule\RuleOutcome.java

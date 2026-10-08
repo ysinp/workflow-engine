@@ -1,0 +1,233 @@
+networks:
+  poc-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  grafana-data:
+  loki-data:
+
+services:
+  # --- Single shared Postgres: hosts Temporal's own "temporal"/"temporal_
+  # visibility" databases (created by the temporal auto-setup container below)
+  # AND the app's "accounts" database (created by postgres-init/ on first
+  # boot) side by side in one server. Separate databases/roles keep the two
+  # workloads logically isolated (independent credentials, independent
+  # backup/restore of one without the other); what's shared is just the one
+  # running Postgres process/container.
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [poc-net]
+
+  temporal:
+    image: temporalio/auto-setup:1.29.7
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: postgres
+      # Enables the server's built-in Prometheus endpoint (docker/config_template.yaml in
+      # temporalio/temporal); no host port published, Prometheus scrapes it over poc-net.
+      PROMETHEUS_ENDPOINT: 0.0.0.0:9090
+    ports:
+      - "7233:7233"
+    networks: [poc-net]
+
+  temporal-ui:
+    image: temporalio/ui:2.54.1
+    depends_on: [temporal]
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8088:8080"
+    networks: [poc-net]
+
+  # --- Application services ---------------------------------------------------
+  create-account:
+    build: ./create-account
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/accounts
+      SPRING_DATASOURCE_USERNAME: accounts_user
+      SPRING_DATASOURCE_PASSWORD: accounts_pass
+      # Dev-only default if unset (see create-account/README.md); override for anything
+      # beyond a local demo.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-please-this-needs-to-be-at-least-32-bytes-long}
+    ports:
+      - "8083:8083"
+    networks: [poc-net]
+
+  risk-score:
+    build: ./risk-score
+    ports:
+      - "8084:8084"
+    networks: [poc-net]
+
+  identification-service:
+    build: ./identification-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/identification
+      SPRING_DATASOURCE_USERNAME: identification_user
+      SPRING_DATASOURCE_PASSWORD: identification_pass
+    ports:
+      - "8085:8085"
+    networks: [poc-net]
+
+  kyc-service:
+    build: ./kyc-service
+    depends_on:
+      identification-service:
+        condition: service_started
+    environment:
+      IDENTIFICATION_SERVICE_URL: http://identification-service:8085
+    ports:
+      - "8086:8086"
+    networks: [poc-net]
+
+  product-service:
+    build: ./product-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/products
+      SPRING_DATASOURCE_USERNAME: products_user
+      SPRING_DATASOURCE_PASSWORD: products_pass
+    ports:
+      - "8087:8087"
+    networks: [poc-net]
+
+  temporal-orchestration-workflow-engine:
+    build: ./temporal-orchestration-workflow-engine
+    depends_on:
+      temporal:
+        condition: service_started
+      create-account:
+        condition: service_started
+      risk-score:
+        condition: service_started
+      identification-service:
+        condition: service_started
+      kyc-service:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      TEMPORAL_TARGET: temporal:7233
+      CREATE_ACCOUNT_SERVICE_URL: http://create-account:8083
+      RISK_SCORE_SERVICE_URL: http://risk-score:8084
+      # The onboarding wizard workflow calls these as Activities - the browser no longer calls
+      # identification-service/kyc-service directly (see api.OnboardingController).
+      IDENTIFICATION_SERVICE_URL: http://identification-service:8085
+      KYC_SERVICE_URL: http://kyc-service:8086
+      # Saved Workflow Editor diagrams (see api/workflowdef) - own database on the shared
+      # Postgres server, separate from create-account's "accounts" DB.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/workflow_engine
+      SPRING_DATASOURCE_USERNAME: workflow_engine_user
+      SPRING_DATASOURCE_PASSWORD: workflow_engine_pass
+      # Must match create-account's JWT_SECRET - verifies the reviewer's token on the
+      # workflow-definitions endpoints (see service.ReviewerAuthGuard).
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-please-this-needs-to-be-at-least-32-bytes-long}
+    ports:
+      - "8081:8081"
+    # WorkerFactory.start() verifies the Temporal connection at boot and exits
+    # if it isn't reachable yet (auto-setup can take a few seconds longer than
+    # "started"); retry a few times rather than requiring a custom healthcheck.
+    restart: on-failure:5
+    networks: [poc-net]
+
+  # account-creation-submission is retired: Product Selection through Security are now all steps
+  # of the one OnboardingWizardWorkflow hosted by temporal-orchestration-workflow-engine (see its
+  # OnboardingController/WorkflowExecutionController) - the browser calls that service directly
+  # for the whole sign-up journey, including starting the risk-gated review. This service's
+  # source still exists on disk pending manual deletion; it is no longer built or run.
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      create-account:
+        condition: service_started
+      temporal-orchestration-workflow-engine:
+        condition: service_started
+      product-service:
+        condition: service_started
+    environment:
+      # Resolved by the BROWSER, not inside the docker network — so these must
+      # be host-reachable addresses (the same ports published above), not
+      # internal service names like "http://create-account:8083". The browser no longer talks to
+      # identification-service/kyc-service/account-creation-submission directly - the
+      # orchestration engine calls the first two as Activities and now owns the risk-gated
+      # account-creation flow itself (see OnboardingController/WorkflowExecutionController).
+      ACCOUNTS_API_URL: http://localhost:8083
+      ORCHESTRATION_API_URL: http://localhost:8081
+      PRODUCT_API_URL: http://localhost:8087
+    ports:
+      - "5174:80"
+    networks: [poc-net]
+
+  # --- Observability ----------------------------------------------------------
+  prometheus:
+    image: quay.io/prometheus/prometheus:v2.55.1
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks: [poc-net]
+
+  loki:
+    image: grafana/loki:2.9.8
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks: [poc-net]
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on: [loki]
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [poc-net]
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    depends_on: [prometheus, loki]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    networks: [poc-net]

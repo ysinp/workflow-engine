@@ -1,0 +1,17 @@
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\client\IdentificationServiceFeignClient.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\config\CorsConfig.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\controller\KycController.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\dto\FinancialVerificationRequest.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\dto\FinancialVerificationResponse.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\dto\IdentificationView.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\exception\ErrorResponse.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\exception\GlobalExceptionHandler.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\exception\IdentificationRecordNotFoundException.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\exception\IdentificationServiceUnavailableException.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\KycServiceApplication.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\service\FeignIdentificationClient.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\service\FinancialVerificationService.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\service\FinancialVerificationServiceImpl.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\service\IdentificationClient.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\service\KycVerificationResult.java
+C:\workflow-engine\kyc-service\src\main\java\com\example\kyc\service\KycVerificationService.java

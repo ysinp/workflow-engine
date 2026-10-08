@@ -1,0 +1,477 @@
+{
+  "name": "KYC Onboarding (converted from Camunda BPMN kycOnboardingProcess)",
+  "layoutDirection": "RIGHT",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "node",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "type": "trigger",
+        "icon": "Lightning",
+        "properties": {
+          "label": "KYC Submitted",
+          "description": "BPMN startEvent 'StartEvent_1'",
+          "type": "eventBasedTrigger",
+          "status": "active",
+          "eventType": "apiCall",
+          "condition": { "rule": "", "value": "" },
+          "systemValue": ""
+        }
+      }
+    },
+    {
+      "id": "action-verify-documents",
+      "type": "node",
+      "position": { "x": 280, "y": 200 },
+      "data": {
+        "type": "action",
+        "icon": "PlayCircle",
+        "properties": {
+          "label": "Verify Documents",
+          "description": "BPMN serviceTask 'verifyDocumentsTask' (camunda:delegateExpression=\"${documentVerificationDelegate}\"). Delegate execution has no direct built-in equivalent; represented as executeScript, the closest technical-action node type to an in-process delegate call.",
+          "status": "active",
+          "type": "executeScript",
+          "executeScript": {
+            "scriptLanguage": "javaScript",
+            "scriptEditor": "return documentVerificationDelegate.execute(execution);",
+            "scriptStoring": "docsValid",
+            "passWorkflow": true
+          }
+        }
+      }
+    },
+    {
+      "id": "decision-docs-valid",
+      "type": "node",
+      "position": { "x": 560, "y": 200 },
+      "data": {
+        "type": "decision",
+        "icon": "ArrowsSplit",
+        "properties": {
+          "label": "Documents Valid?",
+          "description": "BPMN exclusiveGateway 'gatewayDocsValid'",
+          "status": "active",
+          "decisionBranches": [
+            {
+              "id": "valid",
+              "sourceHandle": "source:inner:valid",
+              "label": "Valid",
+              "conditions": [
+                { "x": "docsValid", "comparisonOperator": "isEqualTo", "y": "true", "logicalOperator": "" }
+              ]
+            },
+            {
+              "id": "invalid",
+              "sourceHandle": "source:inner:invalid",
+              "label": "Invalid",
+              "conditions": [
+                { "x": "docsValid", "comparisonOperator": "isEqualTo", "y": "false", "logicalOperator": "" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "delay-request-additional-documents",
+      "type": "node",
+      "position": { "x": 560, "y": 460 },
+      "data": {
+        "type": "delay",
+        "icon": "Timer",
+        "properties": {
+          "label": "Request Additional Documents",
+          "description": "BPMN userTask 'requestAdditionalDocumentsTask' (camunda:candidateGroups=\"compliance\", camunda:dueDate=+3 days, form field 'docsValid': boolean). Workflow Builder has no native human-task/HITL node type (confirmed against the current built-in Nodes catalog and their own blog on the topic) - modeled as a delay awaiting an external signal carrying the human's resubmission decision. candidateGroups and dueDate are NOT expressible in the built-in delay schema; preserved below only as documentation. Also: the true 3-day SLA exceeds the built-in maxWaitTime enum's ceiling (24h) - a real schema gap, not silently rounded away.",
+          "type": "conditionalDelay",
+          "status": "active",
+          "duration": {
+            "timeUnits": "hours",
+            "delayAmount": 0,
+            "expression": "awaitSignal('requestAdditionalDocumentsCompleted'); candidateGroups=compliance; dueDate=P3D (exceeds built-in maxWaitTime ceiling of 24h)",
+            "maxWaitTime": "24"
+          }
+        }
+      }
+    },
+    {
+      "id": "decision-docs-valid-retry",
+      "type": "node",
+      "position": { "x": 840, "y": 460 },
+      "data": {
+        "type": "decision",
+        "icon": "ArrowsSplit",
+        "properties": {
+          "label": "Documents Valid? (Retry)",
+          "description": "BPMN exclusiveGateway 'gatewayDocsValidRetry' (unnamed in source BPMN)",
+          "status": "active",
+          "decisionBranches": [
+            {
+              "id": "valid",
+              "sourceHandle": "source:inner:valid",
+              "label": "Valid",
+              "conditions": [
+                { "x": "docsValid", "comparisonOperator": "isEqualTo", "y": "true", "logicalOperator": "" }
+              ]
+            },
+            {
+              "id": "still-missing",
+              "sourceHandle": "source:inner:still-missing",
+              "label": "Still Missing",
+              "conditions": [
+                { "x": "docsValid", "comparisonOperator": "isEqualTo", "y": "false", "logicalOperator": "" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "action-risk-scoring",
+      "type": "node",
+      "position": { "x": 1120, "y": 200 },
+      "data": {
+        "type": "action",
+        "icon": "PlayCircle",
+        "properties": {
+          "label": "Calculate Risk Score",
+          "description": "BPMN serviceTask 'riskScoringTask' (camunda:delegateExpression=\"${riskScoringDelegate}\"). Reached from both the direct-valid path and the post-retry-valid path, matching the BPMN's two incoming sequence flows onto this task.",
+          "status": "active",
+          "type": "executeScript",
+          "executeScript": {
+            "scriptLanguage": "javaScript",
+            "scriptEditor": "return riskScoringDelegate.execute(execution);",
+            "scriptStoring": "riskLevel",
+            "passWorkflow": true
+          }
+        }
+      }
+    },
+    {
+      "id": "decision-risk-level",
+      "type": "node",
+      "position": { "x": 1400, "y": 200 },
+      "data": {
+        "type": "decision",
+        "icon": "ArrowsSplit",
+        "properties": {
+          "label": "Risk Level?",
+          "description": "BPMN exclusiveGateway 'gatewayRiskLevel'",
+          "status": "active",
+          "decisionBranches": [
+            {
+              "id": "low-medium",
+              "sourceHandle": "source:inner:low-medium",
+              "label": "Low / Medium Risk",
+              "conditions": [
+                { "x": "riskLevel", "comparisonOperator": "isNotEqualTo", "y": "HIGH", "logicalOperator": "" }
+              ]
+            },
+            {
+              "id": "high",
+              "sourceHandle": "source:inner:high",
+              "label": "High Risk",
+              "conditions": [
+                { "x": "riskLevel", "comparisonOperator": "isEqualTo", "y": "HIGH", "logicalOperator": "" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "delay-enhanced-due-diligence",
+      "type": "node",
+      "position": { "x": 1400, "y": 460 },
+      "data": {
+        "type": "delay",
+        "icon": "Timer",
+        "properties": {
+          "label": "Enhanced Due Diligence Review",
+          "description": "BPMN userTask 'enhancedDueDiligenceTask' (camunda:candidateGroups=\"complianceSenior\", camunda:dueDate=+5 days, form field 'eddCleared': boolean). Same HITL gap as the other human tasks in this process - modeled as a delay awaiting an external signal. The true 5-day SLA exceeds the built-in maxWaitTime enum's ceiling (24h).",
+          "type": "conditionalDelay",
+          "status": "active",
+          "duration": {
+            "timeUnits": "hours",
+            "delayAmount": 0,
+            "expression": "awaitSignal('enhancedDueDiligenceCompleted'); candidateGroups=complianceSenior; dueDate=P5D (exceeds built-in maxWaitTime ceiling of 24h)",
+            "maxWaitTime": "24"
+          }
+        }
+      }
+    },
+    {
+      "id": "decision-edd-cleared",
+      "type": "node",
+      "position": { "x": 1680, "y": 460 },
+      "data": {
+        "type": "decision",
+        "icon": "ArrowsSplit",
+        "properties": {
+          "label": "EDD Cleared?",
+          "description": "BPMN exclusiveGateway 'gatewayEddCleared'",
+          "status": "active",
+          "decisionBranches": [
+            {
+              "id": "cleared",
+              "sourceHandle": "source:inner:cleared",
+              "label": "Cleared",
+              "conditions": [
+                { "x": "eddCleared", "comparisonOperator": "isEqualTo", "y": "true", "logicalOperator": "" }
+              ]
+            },
+            {
+              "id": "not-cleared",
+              "sourceHandle": "source:inner:not-cleared",
+              "label": "Not Cleared",
+              "conditions": [
+                { "x": "eddCleared", "comparisonOperator": "isEqualTo", "y": "false", "logicalOperator": "" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "delay-compliance-approval",
+      "type": "node",
+      "position": { "x": 1680, "y": 200 },
+      "data": {
+        "type": "delay",
+        "icon": "Timer",
+        "properties": {
+          "label": "Compliance Approval",
+          "description": "BPMN userTask 'complianceApprovalTask' (camunda:candidateGroups=\"compliance\", camunda:dueDate=+3 days, form field 'approved': boolean). Reached from both the low/medium-risk path and the EDD-cleared path, matching the BPMN's two incoming sequence flows onto this task. Same HITL gap as the other human tasks in this process.",
+          "type": "conditionalDelay",
+          "status": "active",
+          "duration": {
+            "timeUnits": "hours",
+            "delayAmount": 0,
+            "expression": "awaitSignal('complianceApprovalCompleted'); candidateGroups=compliance; dueDate=P3D (exceeds built-in maxWaitTime ceiling of 24h)",
+            "maxWaitTime": "24"
+          }
+        }
+      }
+    },
+    {
+      "id": "decision-approved",
+      "type": "node",
+      "position": { "x": 1960, "y": 200 },
+      "data": {
+        "type": "decision",
+        "icon": "ArrowsSplit",
+        "properties": {
+          "label": "Approved?",
+          "description": "BPMN exclusiveGateway 'gatewayApproved'",
+          "status": "active",
+          "decisionBranches": [
+            {
+              "id": "approve",
+              "sourceHandle": "source:inner:approve",
+              "label": "Approve",
+              "conditions": [
+                { "x": "approved", "comparisonOperator": "isEqualTo", "y": "true", "logicalOperator": "" }
+              ]
+            },
+            {
+              "id": "reject",
+              "sourceHandle": "source:inner:reject",
+              "label": "Reject",
+              "conditions": [
+                { "x": "approved", "comparisonOperator": "isEqualTo", "y": "false", "logicalOperator": "" }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "notification-approved",
+      "type": "node",
+      "position": { "x": 2240, "y": 80 },
+      "data": {
+        "type": "notification",
+        "icon": "PaperPlaneRight",
+        "properties": {
+          "label": "Notify Customer - Approved",
+          "description": "BPMN serviceTask 'notifyApprovedTask' (camunda:delegateExpression=\"${notifyCustomerDelegate}\", field outcome=APPROVED). This node is terminal (no outgoing edges) - Workflow Builder has no explicit End-event node type, so BPMN endEvent 'endApproved' has no separate node here.",
+          "type": "email",
+          "status": "active",
+          "sendEmail": {
+            "address": "{{applicant.email}}",
+            "copy": "",
+            "subject": "Your KYC verification has been approved",
+            "body": "Hello {{applicant.name}}, your KYC case has been approved.",
+            "priority": "normal",
+            "retries": 3,
+            "retryOnFailure": true
+          }
+        }
+      }
+    },
+    {
+      "id": "notification-rejected",
+      "type": "node",
+      "position": { "x": 2240, "y": 460 },
+      "data": {
+        "type": "notification",
+        "icon": "PaperPlaneRight",
+        "properties": {
+          "label": "Notify Customer - Rejected",
+          "description": "BPMN serviceTask 'notifyRejectedTask' (camunda:delegateExpression=\"${notifyCustomerDelegate}\", field outcome=REJECTED). Three BPMN incoming flows converge here (still-missing documents, EDD not cleared, compliance rejection), matching this node's three incoming edges below. Terminal (no outgoing edges) - BPMN endEvent 'endRejected' has no separate node, same reasoning as the approved path.",
+          "type": "email",
+          "status": "active",
+          "sendEmail": {
+            "address": "{{applicant.email}}",
+            "copy": "",
+            "subject": "Your KYC verification was not approved",
+            "body": "Hello {{applicant.name}}, your KYC case has been rejected.",
+            "priority": "normal",
+            "retries": 3,
+            "retryOnFailure": true
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-trigger-verifydocuments",
+      "source": "trigger-1",
+      "sourceHandle": "source",
+      "target": "action-verify-documents",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-verifydocuments-docsvalid",
+      "source": "action-verify-documents",
+      "sourceHandle": "source",
+      "target": "decision-docs-valid",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-docsvalid-valid-riskscoring",
+      "source": "decision-docs-valid",
+      "sourceHandle": "source:inner:valid",
+      "target": "action-risk-scoring",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Valid"
+    },
+    {
+      "id": "edge-docsvalid-invalid-requestdocs",
+      "source": "decision-docs-valid",
+      "sourceHandle": "source:inner:invalid",
+      "target": "delay-request-additional-documents",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Invalid"
+    },
+    {
+      "id": "edge-requestdocs-retrygateway",
+      "source": "delay-request-additional-documents",
+      "sourceHandle": "source",
+      "target": "decision-docs-valid-retry",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-retrygateway-valid-riskscoring",
+      "source": "decision-docs-valid-retry",
+      "sourceHandle": "source:inner:valid",
+      "target": "action-risk-scoring",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Valid"
+    },
+    {
+      "id": "edge-retrygateway-stillmissing-rejected",
+      "source": "decision-docs-valid-retry",
+      "sourceHandle": "source:inner:still-missing",
+      "target": "notification-rejected",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Still Missing"
+    },
+    {
+      "id": "edge-riskscoring-risklevel",
+      "source": "action-risk-scoring",
+      "sourceHandle": "source",
+      "target": "decision-risk-level",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-risklevel-lowmedium-complianceapproval",
+      "source": "decision-risk-level",
+      "sourceHandle": "source:inner:low-medium",
+      "target": "delay-compliance-approval",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Low / Medium Risk"
+    },
+    {
+      "id": "edge-risklevel-high-edd",
+      "source": "decision-risk-level",
+      "sourceHandle": "source:inner:high",
+      "target": "delay-enhanced-due-diligence",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "High Risk"
+    },
+    {
+      "id": "edge-edd-eddclearedgateway",
+      "source": "delay-enhanced-due-diligence",
+      "sourceHandle": "source",
+      "target": "decision-edd-cleared",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-eddcleared-cleared-complianceapproval",
+      "source": "decision-edd-cleared",
+      "sourceHandle": "source:inner:cleared",
+      "target": "delay-compliance-approval",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Cleared"
+    },
+    {
+      "id": "edge-eddcleared-notcleared-rejected",
+      "source": "decision-edd-cleared",
+      "sourceHandle": "source:inner:not-cleared",
+      "target": "notification-rejected",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Not Cleared"
+    },
+    {
+      "id": "edge-complianceapproval-approvedgateway",
+      "source": "delay-compliance-approval",
+      "sourceHandle": "source",
+      "target": "decision-approved",
+      "targetHandle": "target",
+      "type": "labelEdge"
+    },
+    {
+      "id": "edge-approved-approve-notifyapproved",
+      "source": "decision-approved",
+      "sourceHandle": "source:inner:approve",
+      "target": "notification-approved",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Approve"
+    },
+    {
+      "id": "edge-approved-reject-notifyrejected",
+      "source": "decision-approved",
+      "sourceHandle": "source:inner:reject",
+      "target": "notification-rejected",
+      "targetHandle": "target",
+      "type": "labelEdge",
+      "label": "Reject"
+    }
+  ]
+}

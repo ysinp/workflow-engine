@@ -1,0 +1,4 @@
+com\example\orchestration\workflow\OnboardingWizardWorkflowImplTest.class
+com\example\orchestration\service\WorkflowExecutionServiceTest.class
+com\example\orchestration\workflow\AccountCreationWorkflowImplTest.class
+com\example\orchestration\activity\AccountActivitiesImplTest.class

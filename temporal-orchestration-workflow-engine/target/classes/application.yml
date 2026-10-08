@@ -1,0 +1,74 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: temporal-orchestration-workflow-engine
+  datasource:
+    # Separate database on the same shared Postgres server as create-account's "accounts" DB
+    # (see postgres-init/02-init-workflow-engine-db.sql) - workflow definitions are unrelated
+    # data, not account rows, so they get their own DB rather than a shared schema.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/workflow_engine}
+    username: ${SPRING_DATASOURCE_USERNAME:workflow_engine_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:workflow_engine_pass}
+  jpa:
+    # ddl-auto: update is acceptable for this POC only, matching create-account's convention.
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  cloud:
+    openfeign:
+      # JDK's default HttpURLConnection-backed client can't send PATCH at all - needed for
+      # IdentificationServiceClient.updateIdentification (see pom.xml's feign-okhttp comment).
+      okhttp:
+        enabled: true
+      client:
+        config:
+          # Kept below the activity StartToCloseTimeout (10s, see AccountCreationWorkflowImpl)
+          # so failures surface as activity errors (and get retried) rather than as timeouts.
+          default:
+            connect-timeout: 3000
+            read-timeout: 8000
+
+temporal:
+  # host:port of the Temporal frontend (gRPC)
+  target: ${TEMPORAL_TARGET:127.0.0.1:7233}
+
+services:
+  create-account:
+    base-url: ${CREATE_ACCOUNT_SERVICE_URL:http://localhost:8083}
+  risk-score:
+    base-url: ${RISK_SCORE_SERVICE_URL:http://localhost:8084}
+  identification-service:
+    base-url: ${IDENTIFICATION_SERVICE_URL:http://localhost:8085}
+  kyc-service:
+    base-url: ${KYC_SERVICE_URL:http://localhost:8086}
+
+# Must match create-account's jwt.secret exactly - this service verifies (never issues) the JWT
+# create-account signs, to gate the workflow-definitions endpoints to the REVIEWER role.
+jwt:
+  secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-please-this-needs-to-be-at-least-32-bytes-long}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+      percentiles:
+        http:
+          server:
+            requests: 0.5,0.95,0.99

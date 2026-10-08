@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure Banking · KYC Demo</title>
+    <!-- Runtime config: written by docker-entrypoint.sh at container start.
+         Must load BEFORE the bundled app script so window.__ENV__ is available
+         when the API client module reads it. -->
+    <script src="/env.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+package com.example.riskscore.rules
+
+import com.example.riskscore.service.rule.RiskFact
+import com.example.riskscore.service.rule.RuleOutcome
+
+/*
+ * Demo-scope rules only - see README.md "Risk rules". A real deployment would source the
+ * jurisdiction list from a maintained sanctions/jurisdiction feed instead of a literal list here.
+ *
+ * Each rule that fires inserts a RuleOutcome fact; RiskScoringServiceImpl collects every
+ * RuleOutcome left in working memory after fireAllRules() and sums them. A rule that doesn't
+ * match simply inserts nothing - there is no "fired with zero points" fact.
+ */
+
+rule "High-risk jurisdiction"
+    when
+        $f: RiskFact(nationality != null, nationality.toUpperCase() in ("IR", "KP", "SY", "CU", "SD"))
+    then
+        insert(new RuleOutcome(100, "Nationality " + $f.getNationality() + " is on the high-risk jurisdiction list"));
+end
+
+rule "Demo marker - force high risk"
+    when
+        $f: RiskFact(idNumber != null, idNumber.toUpperCase().contains("RISK-HIGH"))
+    then
+        insert(new RuleOutcome(100, "ID number contains the RISK-HIGH test marker"));
+end
+
+rule "Demo marker - force low risk"
+    when
+        $f: RiskFact(idNumber != null, idNumber.toUpperCase().contains("RISK-LOW"))
+    then
+        insert(new RuleOutcome(-100, "ID number contains the RISK-LOW test marker"));
+end

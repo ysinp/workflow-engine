@@ -1,0 +1,15 @@
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\config\CorsConfig.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\controller\IdentificationController.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\dto\DraftResponse.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\dto\IdentificationView.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\dto\SaveIdentificationRequest.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\dto\UpdateIdentificationRequest.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\dto\WizardStep.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\entity\IdentificationRecord.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\exception\ErrorResponse.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\exception\GlobalExceptionHandler.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\exception\IdentificationNotFoundException.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\IdentificationServiceApplication.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\repository\IdentificationRecordRepository.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\service\IdentificationService.java
+C:\workflow-engine\identification-service\src\main\java\com\example\identification\service\IdentificationServiceImpl.java

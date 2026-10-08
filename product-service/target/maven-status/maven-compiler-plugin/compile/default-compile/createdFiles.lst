@@ -1,0 +1,10 @@
+com\example\product\ProductServiceApplication.class
+com\example\product\service\ProductServiceImpl.class
+com\example\product\config\ProductCatalogSeeder.class
+com\example\product\repository\ProductRepository.class
+com\example\product\dto\ProductResponse.class
+com\example\product\service\ProductService.class
+com\example\product\config\CorsConfig.class
+com\example\product\entity\Product.class
+com\example\product\entity\ProductCategory.class
+com\example\product\controller\ProductController.class

@@ -1,0 +1,15 @@
+com\example\identification\dto\IdentificationView.class
+com\example\identification\dto\UpdateIdentificationRequest.class
+com\example\identification\IdentificationServiceApplication.class
+com\example\identification\entity\IdentificationRecord.class
+com\example\identification\dto\SaveIdentificationRequest.class
+com\example\identification\service\IdentificationService.class
+com\example\identification\repository\IdentificationRecordRepository.class
+com\example\identification\service\IdentificationServiceImpl.class
+com\example\identification\exception\GlobalExceptionHandler.class
+com\example\identification\config\CorsConfig.class
+com\example\identification\dto\DraftResponse.class
+com\example\identification\exception\IdentificationNotFoundException.class
+com\example\identification\controller\IdentificationController.class
+com\example\identification\dto\WizardStep.class
+com\example\identification\exception\ErrorResponse.class
